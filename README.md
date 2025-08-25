@@ -69,7 +69,7 @@ The script first loads your CSV data into a MATLAB table. It then converts all p
 
     - **Load and Read CSV file**
     The csv file to be processed should contain the information of each particle's ID, frame number, and x/y-coordinates. As the following example csv file shows: 
-    <img src="./Images/csv%20file%20storing%20all%20the%20tracjectories.png" alt="Plot" width="450">
+    <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/csv%20file%20storing%20all%20the%20tracjectories.png" alt="Plot" width="450">
     Once the csv is loaded successfully, you can check the table storing all information in the worksapce: 
     <img src="./Images/Table%20T.png" alt="Plot" width="450">
     - **All trajectories are stored in a Cell Array Named tracks for later analysis**
