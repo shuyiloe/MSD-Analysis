@@ -34,6 +34,7 @@ The workflow is built around the powerful *@msdanalyzer* class developed by Jean
     |-- msd_analysis_scipt.m (This script)
     |-- @msdanalyzer/ (The downloaded msdanalyzer folder)
     |-- Trajectory Data/
+    |-- MSD Data/
     |-- your_data_file.csv
     ```
 
@@ -78,13 +79,14 @@ The script first loads your CSV data into a MATLAB table. It then converts all p
     *tracks* is an $N \times 1$ (N = numParticles, i.e., the number of particles) cell array which looks like this: 
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/Cell%20Array_tracks.png" alt="Plot" width="450">
     
-    You can check each entry by simply clicking it: 
+    You can check each entry by simply clicking it:
+   
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/Single%20Entry%20in%20tracks.png" alt="Plot" width="450">
     
     The first column is the time vector, and the second and the third are the x-coordinates and y-coordinates, respectively.
     - **Tracjectories are normalized for beeter visualization**
     Since the starting point may vary drastically from point to point, which would affects the plottting and make visualization difficult, hence for better view, normalization shifts the starting point of all particles to the origin $(0 , 0)$. 
-3. **Interactive Trajectory Curation**
+4. **Interactive Trajectory Curation**
 This is the most critical interactive step. A figure window will pop up, showing a diagnostic plot for each particle trajectory, one by one.
     - Use the buttons at the bottom of the window to decide the fate of each trajectory:
         - Press *Delet* to delet invalid trajectories;
@@ -93,7 +95,7 @@ This is the most critical interactive step. A figure window will pop up, showing
 
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/Track_Index_1_Particle_ID_0.png" alt="Plot" width="700">
 
-4. **Visualizing Instantaneous Velocity Distribution & Velocity Correlation**
+5. **Visualizing Instantaneous Velocity Distribution & Velocity Correlation**
 Once you have finished curating your tracks, the script automatically generates two diagnostic plots based on the remaining trajectories:
     - **Veocity Distribution**: A histogram of the instantaneous velocities ($v_x ~\text{and}~ v_y$). For pure Brownian motion, this distribution should be a Gaussian distribution centered at zero.
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/velocity%20distribution.png" alt="Plot" width="700">
@@ -101,7 +103,7 @@ Once you have finished curating your tracks, the script automatically generates 
     - **Velocity Correlation**: A plot showing how the velocity is correlated over time. For pure Brownian motion, this should be zero for all time except at $\Delta t=0$.
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/velocity%20correlation.png" alt="Plot" width="700">
 
-5. **Visualizing MSD, MeanMSD, and fitting curve**
+6. **Visualizing MSD, MeanMSD, and fitting curve**
     - *plotMSD* plots all the mean square displacement curves.
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/All MSD.png" alt="Plot" width="700">
     
@@ -111,7 +113,7 @@ Once you have finished curating your tracks, the script automatically generates 
     - The calculated diffusion coefficient and Goodness of fitting will be displayed in the command window:
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/Fitting Info.png" alt="Plot" width="700">
 
-6. **Export Results** 
+7. **Export Results** 
 Finally, the script automatically generates the final outputs based on the filtered and analyzed data. It creates two sets of results with two distinct time limits (1.5s and 2.0s by default). For each time limit, you will obtain:
     - **A CSV file** (e.g. MSD_for_publication_Filtered_1.5s.csv): This file contains the time data, Mean MSD, Standard Error of the Mean (SEM), the Diffusion Coefficient (D) and the goodness of fitting ($R^2$). You can find it in a folder named *MSD Data*.
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/exported result.png" alt="Plot" width="700">
