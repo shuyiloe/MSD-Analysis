@@ -34,7 +34,7 @@ The workflow is built around the powerful *@msdanalyzer* class developed by Jean
     |-- msd_analysis_scipt.m (This script)
     |-- @msdanalyzer/ (The downloaded msdanalyzer folder)
     |-- Trajectory Data/
-    |-- MSD Data
+    |-- MSD Data/
     |-- your_data_file.csv
     ```
 
