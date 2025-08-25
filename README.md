@@ -70,13 +70,17 @@ The script first loads your CSV data into a MATLAB table. It then converts all p
     - **Load and Read CSV file**
     The csv file to be processed should contain the information of each particle's ID, frame number, and x/y-coordinates. As the following example csv file shows: 
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/csv%20file%20storing%20all%20the%20tracjectories.png" alt="Plot" width="450">
+    
     Once the csv is loaded successfully, you can check the table storing all information in the worksapce: 
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/Table%20T.png" alt="Plot" width="450">
+    
     - **All trajectories are stored in a Cell Array Named tracks for later analysis**
     *tracks* is an $N \times 1$ (N = numParticles, i.e., the number of particles) cell array which looks like this: 
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/Cell%20Array_tracks.png" alt="Plot" width="450">
+    
     You can check each entry by simply clicking it: 
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/Single%20Entry%20in%20tracks.png" alt="Plot" width="450">
+    
     The first column is the time vector, and the second and the third are the x-coordinates and y-coordinates, respectively.
     - **Tracjectories are normalized for beeter visualization**
     Since the starting point may vary drastically from point to point, which would affects the plottting and make visualization difficult, hence for better view, normalization shifts the starting point of all particles to the origin $(0 , 0)$. 
@@ -93,21 +97,25 @@ This is the most critical interactive step. A figure window will pop up, showing
 Once you have finished curating your tracks, the script automatically generates two diagnostic plots based on the remaining trajectories:
     - **Veocity Distribution**: A histogram of the instantaneous velocities ($v_x ~\text{and}~ v_y$). For pure Brownian motion, this distribution should be a Gaussian distribution centered at zero.
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/velocity%20distribution.png" alt="Plot" width="700">
+    
     - **Velocity Correlation**: A plot showing how the velocity is correlated over time. For pure Brownian motion, this should be zero for all time except at $\Delta t=0$.
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/velocity%20correlation.png" alt="Plot" width="700">
 
 5. **Visualizing MSD, MeanMSD, and fitting curve**
     - *plotMSD* plots all the mean square displacement curves.
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/All MSD.png" alt="Plot" width="700">
+    
     - *plotMeanMSD* plots the weighted mean of all MSD curves, meanwhile *fitMeanMSD* returns a fitting curve with the goodness of fittting ($R^2$), which is plotted on the same figure.
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/MeanMSD and Fitting Curve.png" alt="Plot" width="700">
+    
     - The calculated diffusion coefficient and Goodness of fitting will be displayed in the command window:
-    <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/Fitting Info.png" alt="Plot" width="700"> 
+    <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/Fitting Info.png" alt="Plot" width="700">
 
 6. **Export Results** 
 Finally, the script automatically generates the final outputs based on the filtered and analyzed data. It creates two sets of results with two distinct time limits (1.5s and 2.0s by default). For each time limit, you will obtain:
     - **A CSV file** (e.g. MSD_for_publication_Filtered_1.5s.csv): This file contains the time data, Mean MSD, Standard Error of the Mean (SEM), the Diffusion Coefficient (D) and the goodness of fitting ($R^2$). You can find it in a folder named *MSD Data*.
-    <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/exported result.png" alt="Plot" width="700"> 
+    <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/exported result.png" alt="Plot" width="700">
+
     - **An MSD Figure**: A polished figure showing the Mean MSD with SEM error bars, a clear title reporting the diffusion coefficient, and properly labeled axes. 
     <img src="MSD_ALL_IN_ONE-1.0-LSY/Images/MSD 20%25.png" alt="Plot" width="700"> 
 
