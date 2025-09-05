@@ -1,0 +1,112 @@
+% --- 1. Find all relevant CSV files recursively ---
+start_path = uigetdir(pwd, 'Select the Parent Folder Containing Your Data');
+if start_path == 0
+    disp('User canceled the operation. Script terminated.');
+    return;
+end
+file_pattern = fullfile(start_path, '**', 'MSD*.csv');
+file_list = dir(file_pattern);
+if isempty(file_list)
+    error('No CSV files matching the pattern were found.');
+end
+
+% --- 1a. Pre-process and Sort File List (NEW SECTION) ---
+fprintf('Found %d files. Sorting them for the legend...\n', length(file_list));
+num_files = length(file_list);
+sort_info = cell(num_files, 2); % {Sort Key, Original Index}
+
+for i = 1:num_files
+    [~, file_name, ~] = fileparts(file_list(i).name);
+    
+    % Extract the condition string (e.g., "H2O", "5mM")
+    condition_str_cell = regexp(file_name, '\((.*?)\)', 'tokens');
+    if isempty(condition_str_cell)
+        condition_str = 'Unknown';
+    else
+        condition_str = condition_str_cell{1}{1};
+    end
+    
+    % Create a numerical key for sorting
+    sort_key = inf; % Default to infinity for unknowns to place them last
+    if strcmpi(condition_str, 'H2O')
+        sort_key = 0; % H2O gets the lowest key, so it comes first
+    else
+        % For others, extract the number (e.g., from "5mM" -> 5)
+        numeric_val_str = erase(condition_str, 'mM');
+        numeric_val = str2double(numeric_val_str);
+        if ~isnan(numeric_val)
+            sort_key = numeric_val;
+        end
+    end
+    
+    sort_info{i, 1} = sort_key;
+    sort_info{i, 2} = i; % Store the original index
+end
+
+% Sort the helper cell array based on the numeric keys (first column)
+sorted_info = sortrows(sort_info, 1);
+sorted_indices = cell2mat(sorted_info(:, 2)); % Get the sorted original indices
+
+% Reorder the main file_list using the sorted indices
+sorted_file_list = file_list(sorted_indices);
+disp('Files sorted successfully. Starting to plot...');
+
+% --- 2. Prepare the figure for plotting ---
+figure('Name', 'MSD Summary Plot', 'NumberTitle', 'off');
+hold on;
+colors = lines(length(sorted_file_list));
+legend_entries = {};
+plot_handles = [];
+
+% --- 3. Loop through the SORTED file list, extract data, and plot ---
+% MODIFIED: We now loop through 'sorted_file_list'
+for i = 1:length(sorted_file_list)
+    try
+        % Use the sorted file list
+        current_file = sorted_file_list(i);
+        full_file_path = fullfile(current_file.folder, current_file.name);
+        fprintf('Processing: %s\n', full_file_path);
+
+        data_table = readtable(full_file_path);
+
+        % Extract data from the table
+        time = data_table.Time_s;
+        mean_msd = data_table.Mean_MSD_um2;
+        sem_error = data_table.SEM;
+        diff_coeff = data_table.D_um2_per_s(1);
+
+        % Extract the condition from the filename
+        [~, file_name, ~] = fileparts(current_file.name);
+        condition_str = regexp(file_name, '\((.*?)\)', 'tokens');
+        condition_label = condition_str{1}{1};
+        
+        % Plot the data with error bars
+        h = errorbar(time, mean_msd, sem_error, '-o', ...
+            'Color', colors(i,:), ...
+            'MarkerSize', 4, ...
+            'MarkerFaceColor', colors(i,:), ...
+            'LineWidth', 1.5, ...
+            'CapSize', 3);
+            
+        plot_handles(i) = h;
+
+        % Create the legend entry for this plot
+        legend_text = sprintf('%s, D = %.3f \\mu m^2 \\cdot s^{-1}', condition_label, diff_coeff);
+        legend_entries{i} = legend_text;
+
+    catch ME
+        warning('Could not process file: %s\nError: %s', current_file.name, ME.message);
+    end
+end
+
+% --- 4. Finalize and format the plot ---
+hold off;
+xlabel('Time (s)', 'FontSize', 14, 'FontWeight', 'bold');
+ylabel('Mean Squared Displacement ($\mu m^2$)', 'FontSize', 14, 'FontWeight', 'bold', 'Interpreter','latex');
+% title('MSD vs. Time for Different Conditions', 'FontSize', 16, 'FontWeight', 'bold');
+grid on;
+box on;
+legend(plot_handles, legend_entries, 'Location', 'northwest', 'Interpreter', 'latex', 'FontSize', 12);
+set(gca, 'FontSize', 12, 'LineWidth', 1.1);
+
+disp('Plotting complete.');

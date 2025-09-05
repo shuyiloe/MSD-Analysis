@@ -1,0 +1,739 @@
+%% MATLAB Script to Load Particle Trajectories for MSD Analysis
+
+% --- Section 1. Define constants and specify file paths ---
+% --- 小节 1. 定义常数和指定文件路径
+disp('--- Section 1: Define Constants and Specify File Paths ---');
+
+% Define the conversion factor from pixels to micrometers
+% 定义换算常数（像素 -> 微米）
+microns_per_pixel = 273.2/1436;
+
+% Define the time interval between frames in seconds (e.g., 30 fps -> 1/30 s)
+% 定义两帧的时间区间（30 帧/秒对应的时间区间是 1/30）
+time_interval = 1/30; 
+
+% Define the path to your data file
+% 定义粒子轨迹文件路径
+filePath = 'Trajectory Data\combined_trajectories_for_msd (20mM H2O2)-(154-750_2651-2950_800-1099 frames).csv';
+
+%%
+% --- Section 2. Read the CSV data into a table ---
+% --- 小节 2.读取粒子轨迹CSV 文件
+
+disp('--- Section 2: Read the CSV Data into a Table ---');
+try
+    T = readtable(filePath); % T is a table loaded from your csv (you can check it in the workspace)
+catch ME % when errors occur, MATLAB creates a MEException object, which cntains useful fields like ME.message
+    error('Failed to read the file. Please check the filePath variable. Error: %s', ME.message);
+end
+disp('Data loaded successfully.');
+
+%%
+% --- Section 3. Store All Trajectories in a Cell Array Named tracks for Analysis---
+% --- 小节 3. 获取粒子的ID & 创建元胞 tracks 并将粒子轨迹储存于其中
+
+disp('--- Section 3: Store All Trajectories in a Cell Array Named tracks for analysis ---');
+uniqueParticleIDs = unique(T.particle_id); % unique() returns all the unique values in an array (here, it's the particle_id column)
+numParticles = length(uniqueParticleIDs);
+fprintf('Found %d unique particle trajectories.\n', numParticles);
+
+% Pre-allocating for all particles, as no filtering is applied.
+tracks = cell(numParticles, 1);
+
+for i = 1:numParticles
+    currentID = uniqueParticleIDs(i); 
+    particleRows = T(T.particle_id == currentID, :);
+    num_frames = size(particleRows, 1);
+    
+    % No filtering: process every track
+    trajectory_pixels = [particleRows.x, particleRows.y];
+    trajectory_microns = trajectory_pixels * microns_per_pixel;
+    time_vector = (0:num_frames-1)' * time_interval;
+    
+    % Directly assign the track to the pre-allocated cell
+    tracks{i} = [time_vector, trajectory_microns];
+end
+fprintf('Processed all %d trajectories.\n', length(tracks));
+
+%%
+% --- Section 4. Manually Normalize Tracks for PLOTTING ---
+% --- 小节 4. 归一化粒子轨迹
+
+disp('--- Section 4: Normalizing Trajectories for Btter Visualization ---');
+for i = 1:length(tracks)
+    original_track = tracks{i};
+    x0 = original_track(1, 2);
+    y0 = original_track(1, 3);
+    normalized_track = original_track;
+    normalized_track(:, 2) = normalized_track(:, 2) - x0;
+    normalized_track(:, 3) = normalized_track(:, 3) - y0;
+    tracks{i} = normalized_track;
+end
+disp('Complete normalization! Data is ready for both analysis and plotting.');
+%%
+% --- Section 5: Track Inspection and Deletion ---
+% --- 小节 5: 检查和删除无效轨迹
+
+disp('--- Section 5: Track Inspection and Deletion ---');
+% Initialize the list of indices to be deleted BEFORE the loop
+invalid_track_indices = [];
+
+if ~isempty(tracks)
+    disp('Use the buttons on the figure to navigate, save, or mark tracks for deletion.');
+    
+    MSD = msdanalyzer(2, 'µm', 's');
+    MSD = MSD.addAll(tracks); 
+    MSD = MSD.computeDrift('velocity');
+    MSD = MSD.computeMSD; 
+    
+    hFig = figure(1); 
+    
+    for i = 1:length(tracks)
+        if ~isgraphics(hFig)
+            disp('Inspection interrupted by user.');
+            break;
+        end
+        
+        clf;
+        
+        % Get handles to the axes when creating them
+        ax1 = subplot(1, 2, 1);
+        single_MSD = MSD.msd{i};
+        plot(ax1, single_MSD(:,1), single_MSD(:,2), 'LineStyle','-');
+        title(ax1, 'MSD Curve'); grid(ax1, 'on');
+        
+        ax2 = subplot(1, 2, 2);
+        normalized_track = tracks{i};
+        plot(ax2, normalized_track(:,2), normalized_track(:,3), 'r-', 'LineWidth', 1);
+        title(ax2, 'Normalized Trajectory'); xlabel(ax2, 'x (µm)'); ylabel(ax2, 'y (µm)');
+        xlim(ax2, [-20 20]); ylim(ax2, [-20 20]); axis(ax2, 'equal'); pbaspect(ax2, [1 1 1]); grid(ax2, 'on');
+        
+        sgtitle(['Diagnostic Plot for Track Index: ', num2str(i), ' (Particle ID: ', num2str(uniqueParticleIDs(i)), ')']);
+        
+        % --- NEW: Adjust subplot positions to make room for buttons ---
+        % We move the bottom edge up and reduce the height of both plots.
+        % The units are normalized (0 to 1).
+        ax1.Position(2) = 0.20; % Move bottom edge up to the 20% mark
+        ax1.Position(4) = 0.70; % Reduce height to 70% of figure height
+        ax2.Position(2) = 0.20;
+        ax2.Position(4) = 0.70;
+
+        % --- AMENDMENT: Adjust button positions to fit in the new space ---
+        % We increase the 'bottom' position from 10 to 30 pixels.
+        uicontrol('Style', 'pushbutton', 'String', 'Next', ...
+                  'Position', [250 30 100 30], ... 
+                  'Callback', @nextCallback);
+
+        uicontrol('Style', 'pushbutton', 'String', 'Delete', ...
+                  'Position', [140 30 100 30], ...
+                  'Callback', @deleteCallback);
+                  
+        uicontrol('Style', 'pushbutton', 'String', 'Save', ...
+                  'Position', [360 30 100 30], ...
+                  'Callback', @saveCallback);
+                  
+        uiwait(hFig);
+    end
+    
+    disp('Finished inspection.');
+    if isgraphics(hFig)
+        close(hFig);
+    end
+    
+else
+    disp('Warning: No tracks were found. Cannot perform analysis.');
+end
+
+% --- This section now runs AFTER the inspection loop is finished ---
+invalid_track_indices = unique(invalid_track_indices);
+if ~isempty(invalid_track_indices)
+    tracks(invalid_track_indices) = [];
+    fprintf('Deleted %d tracks.\n', length(invalid_track_indices));
+end
+fprintf('Number of tracks remaining: %d\n', length(tracks));
+
+% --- Define the Callback Functions ---
+% These functions are called by the buttons. They must be defined within the
+% same script or function file as the main code.
+
+function nextCallback(~, ~)
+    % When "Next" is clicked, simply resume the paused script
+    uiresume(gcbf); % gcbf gets the handle of the figure the button is in
+end
+
+function deleteCallback(~, ~)
+    % This function needs to access variables from the main script.
+    % To do this, we declare them here using evalin.
+    i = evalin('base', 'i');
+    invalid_track_indices = evalin('base', 'invalid_track_indices');
+
+    % Add the current track index to the list
+    invalid_track_indices(end+1) = i;
+    disp(['Track index ', num2str(i), ' marked for deletion.']);
+    
+    % Store the updated list back in the workspace
+    assignin('base', 'invalid_track_indices', invalid_track_indices);
+
+    % Resume the script to move to the next track
+    uiresume(gcbf);
+end
+
+function saveCallback(~, ~)
+    % This also needs access to variables from the main script
+    i = evalin('base', 'i');
+    uniqueParticleIDs = evalin('base', 'uniqueParticleIDs');
+    hFig = evalin('base', 'hFig');
+
+    default_filename = sprintf('Track_Index_%d_Particle_ID_%d.png', i, uniqueParticleIDs(i));
+    [file, path] = uiputfile('*.png', 'Save Figure As', default_filename);
+    if ischar(file)
+        full_filepath = fullfile(path, file);
+        saveas(hFig, full_filepath);
+        disp(['Figure saved to: ', full_filepath]);
+    else
+        disp('Save operation cancelled.');
+    end
+    % Note: We do NOT call uiresume here, so the user can save and then decide what to do next.
+end
+
+%% 
+% --- Section 5b: Export Valid Trajectories to CSV ---
+disp('--- Section 5b: Exporting Valid Trajectories ---');
+
+if ~isempty(tracks)
+    % Initialize an empty cell array to hold data from all tracks
+    all_tracks_data = {};
+    
+    % Loop through each remaining (valid) track
+    for i = 1:length(tracks)
+        % Get the matrix for the current track
+        current_track_matrix = tracks{i};
+        
+        % Get the corresponding particle ID
+        particle_id = uniqueParticleIDs(i);
+        
+        % Extract frame, x, and y columns.
+        % NOTE: These are the NORMALIZED x and y coordinates from Section 4.
+        frame_col = current_track_matrix(:, 1);
+        x_col = current_track_matrix(:, 2);
+        y_col = current_track_matrix(:, 3);
+        
+        % Create a column with the particle ID repeated for each row
+        id_col = repmat(particle_id, size(frame_col, 1), 1);
+        
+        % Combine the columns for this track and add to our cell array
+        all_tracks_data{end+1} = [id_col, frame_col, x_col, y_col];
+    end
+    
+    % Concatenate all track data into one large matrix
+    final_matrix = vertcat(all_tracks_data{:});
+    
+    % Convert the matrix to a table with appropriate headers
+    export_table = array2table(final_matrix, ...
+        'VariableNames', {'particle_id', 'frame', 'x_um', 'y_um'});
+        
+    % Define the output filename and save the table
+    output_path = 'Valid Tracks';
+    output_filename = 'valid_tracks.csv';
+    full_path = fullfile(output_path, output_filename);
+    writetable(export_table, full_path);
+    
+    fprintf('Successfully exported %d valid tracks to %s\n', length(tracks), output_filename);
+    
+else
+    disp('No valid tracks remaining to export.');
+end
+
+%%
+% --- Section 6: Visualize instantaneous velocity distribution and velocity correlation---
+% --- 小节 6: 可视化瞬时速度分布与速度相关性
+
+disp('--- Section 6: Visualize Instantaneous Velocity Distribution And Velocity Correlation ---');
+MSD = msdanalyzer(2, 'µm', 's');
+MSD = MSD.addAll(tracks);
+
+instan_v = MSD.getVelocities;
+All_instan_v = vertcat(instan_v{:});
+
+Mean_v = mean(All_instan_v(:, 2:end));
+Std_v = std(All_instan_v(:, 2:end));
+
+figure;
+hx = histogram(All_instan_v(:, 2), 50);
+hold on
+hy = histogram(All_instan_v(:, 3), 50);
+
+xlabel("µm/s");
+ylabel('Number')
+legend([hx, hy], {"Distribution of $v_x$", "Distribution of $v_y$"}, ...
+       'FontSize',12 ,'Interpreter','latex');
+annotation_text = {sprintf("Mean velocity: v_x = %.3f  v_y = %.3f",Mean_v(1), Mean_v(2)), ...
+              sprintf("Standard deviation: std_x = %.3f std_y = %.3f",Std_v(1), Std_v(2))};
+annotation('textbox', [0.15, 0.75, 0.3, 0.15], ... % [x y w h] in normalized figure units
+           'String', annotation_text, ...
+           'FitBoxToText','on', ...
+           'BackgroundColor','white', ...
+           'EdgeColor','black', ...
+           'FontSize',12);
+%
+MSD = MSD.computeVCorr;
+
+figure 
+MSD.plotMeanVCorr;
+
+%%
+% --- Section 7: Visualization of MSD, MeanMSD, and fitting curve---
+% --- 小节 7: 可视化MSD, 平均MSD和拟合曲线
+
+disp('--- Section 7: Visualization of MSD, MeanMSD, And Fitting Curve ---');
+MSD = msdanalyzer(2, 'µm', 's');
+MSD = MSD.addAll(tracks);
+MSD = MSD.computeDrift('velocity');
+MSD = MSD.computeMSD;
+
+% Uncommend it if you want to visualize the drift
+% figure
+% MSD.plotDrift;
+% MSD.labelPlotTracks;
+
+% Plot MSD of each particle
+% figure
+% MSD.plotMSD;
+% legend('Location','northwest'); 
+
+%%
+MMSD = MSD.getMeanMSD;
+t = MMSD(:,1);
+x = MMSD(:,2);
+
+figure;
+loglog(t,x,'-o','MarkerSize',10);
+
+%%
+% Linear fitting
+% Plot the mean MSD with error bar
+figure
+MSD.plotMeanMSD(gca, true)
+MMSD = MSD.getMeanMSD;
+t = MMSD(:,1);
+x = MMSD(:,2);
+dx = MMSD(:,3) ./ sqrt(MMSD(:,4));
+errorbar(t, x, dx, 'k');
+
+% Curve fitting for the first 20% data
+[fo, gof] = MSD.fitMeanMSD(0.2);
+plot(fo)
+MSD.labelPlotMSD;
+legend off
+
+%%
+% quadratic fitting
+SPACE_UNITS = 'µm';
+TIME_UNITS = 's';
+
+figure 
+MSD.plotMeanMSD(gca, true)
+MMSD = MSD.getMeanMSD;
+t = MMSD(:,1);
+x = MMSD(:,2);
+std_msd = MMSD(:,3);
+std_msd(1) = std_msd(2); % avoid infinity weight
+dx = MMSD(:,3) ./ sqrt(MMSD(:,4));
+errorbar(t, x, dx, 'k');
+
+ft = fittype('a*x + c*x^2');
+[fo, gof] = fit(t, x, ft, 'Weights', 1./std_msd, 'StartPoint', [0 0]);
+
+hold on 
+plot(fo) 
+xlabel('\Delta t (s)');
+ylabel('MSD (\mum^2)');
+legend off
+
+Dfit = fo.a / 4;
+Vfit = sqrt(fo.c);
+
+ci = confint(fo);
+Dci = ci(:,1) / 4;
+Vci = sqrt(ci(:,2));
+
+fprintf('Parabolic fit of the average MSD curve with 95%% confidence interval:\n')
+
+fprintf('D = %.3g [ %.3g - %.3g ] %s\n',Dfit, Dci(1), Dci(2), [SPACE_UNITS '²/' TIME_UNITS]);
+
+fprintf('V = %.3g [ %.3g - %.3g ] %s\n',Vfit, Vci(1), Vci(2), [SPACE_UNITS '/' TIME_UNITS]);
+%%
+% --- Corrected and Robust Quadratic Fitting ---
+
+SPACE_UNITS = 'µm';
+TIME_UNITS = 's';
+
+figure 
+MSD.plotMeanMSD(gca, true)
+MMSD = MSD.getMeanMSD;
+t = MMSD(:,1);
+x = MMSD(:,2);
+std_msd = MMSD(:,3);
+dx = MMSD(:,3) ./ sqrt(MMSD(:,4));
+
+errorbar(t, x, dx, 'k');
+
+% --- ROBUST WEIGHT CALCULATION (START) ---
+% The original line below is a good start but not enough
+% std_msd(1) = std_msd(2); 
+
+% 1. Calculate weights
+weights = 1./std_msd.^2; % It's more common to use variance (std^2) for weights
+
+% 2. Clean the weights: Find any invalid numbers (NaN, Inf) and set them to 0.
+% A weight of 0 means this data point will be ignored by the fit.
+weights(~isfinite(weights)) = 0;
+
+% 3. Check for any remaining negative weights (highly unlikely but safe to check)
+weights(weights < 0) = 0;
+% --- ROBUST WEIGHT CALCULATION (END) ---
+
+ft = fittype('a*x + c*x^2');
+
+% Use the cleaned 'weights' vector in the fit function
+[fo, gof] = fit(t, x, ft, 'Weights', weights, 'StartPoint', [0 0]);
+
+hold on 
+plot(fo) 
+xlabel('\Delta t (s)');
+ylabel('MSD (\mum^2)');
+legend off
+
+% --- Parameter Extraction ---
+Dfit = fo.a / 4;
+Vfit = sqrt(fo.c);
+ci = confint(fo);
+Dci = ci(:,1) / 4;
+Vci = sqrt(ci(:,2));
+
+fprintf('Parabolic fit of the average MSD curve with 95%% confidence interval:\n')
+fprintf('D = %.3g [ %.3g - %.3g ] %s\n', Dfit, Dci(1), Dci(2), [SPACE_UNITS '²/' TIME_UNITS]);
+fprintf('V = %.3g [ %.3g - %.3g ] %s\n', Vfit, Vci(1), Vci(2), [SPACE_UNITS '/' TIME_UNITS]);
+
+%%
+% --- Section 8. Final analysis on filtered trajectories & Export result---
+% --- 小节 8. 分析 & 导出结果
+
+% This section re-runs the analysis from your original script on the
+% filtered trajectories
+disp('--- Section 8: Final Analysis On Filter Data ---');
+if ~isempty(tracks)
+    % This is the same code from your original script in the Canvas
+    MSD = msdanalyzer(2, 'µm', 's');
+    MSD = MSD.addAll(tracks); 
+    MSD = MSD.computeDrift('velocity');
+    MSD = MSD.computeMSD; 
+    MMSD = MSD.getMeanMSD;
+    
+    % --- UPDATED: Call the export and plotting function for both time limits ---
+    % The fitting is now done INSIDE the helper function.
+    export_and_plot_final_data(MSD, MMSD, 1.5);
+    export_and_plot_final_data(MSD, MMSD, 2.0);
+else
+    disp('No tracks remaining to analyze.');
+end
+
+% --- Helper function for final export and plotting ---
+% --- UPDATED: Function now accepts the main MSD object to perform the fit ---
+function export_and_plot_final_data(MSD, MMSD, time_limit)
+    
+    fprintf('\n--- Processing for time limit: %.1fs ---\n', time_limit);
+    
+    % --- NEW: Perform a specific fit for each time limit ---
+    if time_limit == 1.5
+        fit_fraction = 0.15;
+    elseif time_limit == 2.0
+        fit_fraction = 0.2;
+    else
+        fit_fraction = 0.15; % A sensible default
+    end
+    fprintf('Performing linear fit using the first %.0f%% of the MSD curve...\n', fit_fraction * 100);
+    [fo, gof] = MSD.fitMeanMSD(fit_fraction);
+
+    
+    disp('Filtering and exporting final data...');
+    export_indices = MMSD(:, 1) <= time_limit;
+    time_data = MMSD(export_indices, 1);
+    mean_msd_data = MMSD(export_indices, 2);
+    std_dev_data = MMSD(export_indices, 3);
+    n_data = MMSD(export_indices, 4);
+    sem_data = std_dev_data ./ sqrt(n_data);
+    diffusion_coeff = fo.p1 / 4;
+    rsquare = gof.rsquare;
+    num_rows = sum(export_indices);
+    d_col = [diffusion_coeff; NaN(num_rows-1, 1)];
+    rsquare_col = [rsquare; NaN(num_rows-1, 1)];
+    export_table = table(time_data, mean_msd_data, sem_data, d_col, rsquare_col, ...
+        'VariableNames', {'Time_s', 'Mean_MSD_um2', 'SEM', 'D_um2_per_s', 'R_Square'});
+    
+    % --- UPDATED: Filename is now dynamic based on the time limit ---
+    output_csv_path = sprintf('MSD Data/MSD_Linear_Fit_Filtered_%.1fs.csv', time_limit);
+    writetable(export_table, output_csv_path);
+    fprintf('Successfully saved final data to %s\n', output_csv_path);
+
+    disp('Creating final publication plot...');
+    figure; 
+    h_fit = plot(time_data, fo(time_data));
+    set(h_fit, 'Color', 'k', 'LineWidth', 1.5);
+    hold on;
+    h_error = errorbar(time_data, mean_msd_data, sem_data, 'o');
+    set(h_error, 'MarkerSize', 5, 'MarkerFaceColor', 'blue', 'MarkerEdgeColor', 'blue', 'Color', 'blue', 'LineWidth', 1);
+    h_error.CapSize = 4;
+    title_text = sprintf('Mean Squared Displacement (D = %.3f \\mum^2/s)', diffusion_coeff);
+    title(title_text);
+    xlabel('Time (s)');
+    ylabel('MSD (\mum^2)');
+    grid on;
+    box on;
+    
+    % --- UPDATED: Axis limits and ticks are now dynamic ---
+    xlim_upper = time_limit + 0.1;
+    xlim([0 xlim_upper]);
+    xticks(0:0.2:xlim_upper);
+    
+    legend(h_error, 'Mean MSD', 'Location', 'northwest');
+    hold off;
+    fprintf('Processing for %.1fs complete.\n', time_limit);
+end
+%%
+function export_and_plot_quadratic_fit(MMSD, time_limit)
+% This function performs a quadratic fit on the mean MSD data,
+% exports the results to a CSV file, and generates a publication-ready plot.
+%
+% INPUTS:
+%   MMSD       - The Mean MSD matrix from msdanalyzer [time, msd, std, n].
+%   time_limit - The upper time limit (e.g., 1.5 or 2.0) for exporting and plotting.
+
+    fprintf('\n--- Processing Quadratic Fit for time limit: %.1fs ---\n', time_limit);
+
+    % --- 1. Prepare data for fitting ---
+    t = MMSD(:,1);
+    msd_mean = MMSD(:,2);
+    msd_std = MMSD(:,3);
+    
+    % Avoid division by zero for the first point's weight
+    if msd_std(1) == 0
+        msd_std(1) = msd_std(2);
+    end
+
+    % --- 2. Perform Quadratic Fitting ---
+    % Fit the entire MSD curve to get the best overall parameters.
+    % The model is MSD(t) = a*t + c*t^2, where D=a/4 and V=sqrt(c)
+    fprintf('Performing quadratic fit (a*t + c*t^2) on the full MSD curve...\n');
+    ft = fittype('a*x + c*x^2');
+    [fo, gof] = fit(t, msd_mean, ft, 'Weights', 1./msd_std, 'StartPoint', [0 0]);
+
+    % --- 3. Extract Fit Parameters ---
+    diffusion_coeff = fo.a / 4; % D from the linear term
+    velocity = sqrt(fo.c);      % V from the quadratic term
+    rsquare = gof.rsquare;
+    
+    fprintf('Fit results: D = %.4f um^2/s, V = %.4f um/s, R^2 = %.4f\n', ...
+            diffusion_coeff, velocity, rsquare);
+
+    % --- 4. Filter and Prepare Data for Export ---
+    disp('Filtering and preparing final data for export...');
+    export_indices = MMSD(:, 1) <= time_limit;
+    
+    time_data = MMSD(export_indices, 1);
+    mean_msd_data = MMSD(export_indices, 2);
+    std_dev_data = MMSD(export_indices, 3);
+    n_data = MMSD(export_indices, 4);
+    sem_data = std_dev_data ./ sqrt(n_data); % Standard Error of the Mean
+
+    % Create columns for the parameters, placing them only in the first row
+    num_rows = sum(export_indices);
+    d_col = [diffusion_coeff; NaN(num_rows-1, 1)];
+    v_col = [velocity; NaN(num_rows-1, 1)];
+    rsquare_col = [rsquare; NaN(num_rows-1, 1)];
+
+    % --- 5. Create and Write Table to CSV ---
+    export_table = table(time_data, mean_msd_data, sem_data, d_col, v_col, rsquare_col, ...
+        'VariableNames', {'Time_s', 'Mean_MSD_um2', 'SEM', 'D_um2_per_s', 'V_um_per_s', 'R_Square'});
+    
+    output_csv_path = sprintf('MSD Data/MSD_Quadratic_Fit_Filtered_%.1fs.csv', time_limit);
+    writetable(export_table, output_csv_path);
+    fprintf('Successfully saved quadratic fit data to %s\n', output_csv_path);
+
+    % --- 6. Create Final Publication Plot ---
+    disp('Creating final publication plot for quadratic fit...');
+    figure; 
+    hold on;
+
+    % Plot experimental data with error bars
+    h_error = errorbar(time_data, mean_msd_data, sem_data, 'o');
+    set(h_error, 'MarkerSize', 5, 'MarkerFaceColor', 'blue', 'MarkerEdgeColor', 'blue', 'Color', 'blue', 'LineWidth', 1);
+    h_error.CapSize = 4;
+    
+    % Plot the quadratic fit curve up to the time limit
+    % h_fit = plot(fo);
+    % set(h_fit, 'Color', 'k', 'LineWidth', 1.5);
+    
+    % Configure plot aesthetics
+    title_text = sprintf('MSD Quadratic Fit (D = %.3f \\mum^2/s, V = %.3f \\mum/s)', diffusion_coeff, velocity);
+    title(title_text);
+    xlabel('Time (s)');
+    ylabel('MSD (\mum^2)');
+    grid on;
+    box on;
+    
+    xlim_upper = time_limit + 0.1;
+    xlim([0 xlim_upper]);
+    xticks(0:0.2:xlim_upper);
+    
+    legend(h_error, 'Mean MSD', 'Location', 'northwest');
+    hold off;
+    fprintf('Processing for %.1fs complete.\n', time_limit);
+end
+
+% --- Section 9. Quadratic Fit Analysis & Export ---
+disp('--- Section 9: Quadratic Fit Analysis on Filtered Data ---');
+
+if exist('MMSD', 'var') && ~isempty(MMSD)
+    % Call the new function for the two required time limits
+    export_and_plot_quadratic_fit(MMSD, 2.0);
+else
+    disp('MMSD data not found. Please run the MSD calculation first.');
+end
+
+%%
+function export_and_plot_partial_quadratic_fit(MMSD, fit_percentage, time_limit)
+% This function performs a quadratic fit on an initial percentage of the 
+% mean MSD data, exports the results, and generates a publication-ready plot.
+%
+% INPUTS:
+%   MMSD           - The Mean MSD matrix [time, msd, std, n].
+%   fit_percentage - The initial fraction of data points to use for the fit (e.g., 0.15 for 15%).
+%   time_limit     - The upper time limit for exporting and plotting the full dataset.
+
+    % --- 1. Prepare data for fitting based on the specified percentage ---
+    
+    % Validate the percentage input
+    if fit_percentage <= 0 || fit_percentage > 1
+        error('fit_percentage must be between 0 and 1.');
+    end
+    
+    fprintf('\n--- Processing Quadratic Fit on first %.0f%% of data (up to %.1fs) ---\n', ...
+            fit_percentage*100, time_limit);
+
+    num_total_points = size(MMSD, 1);
+    num_fit_points = ceil(num_total_points * fit_percentage);
+    
+    % A quadratic fit requires at least 3 points.
+    if num_fit_points < 3
+        fprintf('Warning: Not enough data points (%d) for a quadratic fit. Skipping.\n', num_fit_points);
+        return;
+    end
+    
+    fprintf('Using the first %d out of %d data points for the fit.\n', num_fit_points, num_total_points);
+
+    % Select the subset of data for the fitting procedure
+    t_fit = MMSD(1:num_fit_points, 1);
+    msd_mean_fit = MMSD(1:num_fit_points, 2);
+    msd_std_fit = MMSD(1:num_fit_points, 3);
+
+    % Avoid division by zero for the first point's weight
+    if msd_std_fit(1) == 0 && length(msd_std_fit) > 1
+        msd_std_fit(1) = msd_std_fit(2);
+    elseif msd_std_fit(1) == 0
+        msd_std_fit(1) = 1; % Assign a neutral weight if it's the only point
+    end
+    
+    % --- 2. Perform Quadratic Fitting on the Data Subset ---
+    % The model is MSD(t) = a*t + c*t^2, where D=a/4 and V=sqrt(c)
+    fprintf('Performing quadratic fit (a*t + c*t^2) on the data subset...\n');
+    ft = fittype('a*x + c*x^2');
+    [fo, gof] = fit(t_fit, msd_mean_fit, ft, 'Weights', 1./msd_std_fit, 'StartPoint', [0 0]);
+    
+    % --- 3. Extract Fit Parameters ---
+    diffusion_coeff = fo.a / 4; % D from the linear term
+    velocity = sqrt(fo.c);      % V from the quadratic term
+    rsquare = gof.rsquare;
+    
+    fprintf('Fit results: D = %.4f um^2/s, V = %.4f um/s, R^2 = %.4f\n', ...
+            diffusion_coeff, velocity, rsquare);
+            
+    % --- 4. Filter and Prepare Full Data for Export ---
+    disp('Filtering and preparing full data for export...');
+    export_indices = MMSD(:, 1) <= time_limit;
+    
+    time_data = MMSD(export_indices, 1);
+    mean_msd_data = MMSD(export_indices, 2);
+    std_dev_data = MMSD(export_indices, 3);
+    n_data = MMSD(export_indices, 4);
+    sem_data = std_dev_data ./ sqrt(n_data); % Standard Error of the Mean
+    
+    % Create columns for the parameters, placing them only in the first row
+    num_rows = sum(export_indices);
+    d_col = [diffusion_coeff; NaN(num_rows-1, 1)];
+    v_col = [velocity; NaN(num_rows-1, 1)];
+    rsquare_col = [rsquare; NaN(num_rows-1, 1)];
+    
+    % --- 5. Create and Write Table to CSV ---
+    export_table = table(time_data, mean_msd_data, sem_data, d_col, v_col, rsquare_col, ...
+        'VariableNames', {'Time_s', 'Mean_MSD_um2', 'SEM', 'D_um2_per_s', 'V_um_per_s', 'R_Square'});
+    
+    % Create a descriptive filename
+    output_csv_path = sprintf('MSD Data/MSD_Fit_on_First_%d_Percent_Filtered_%.1fs.csv', ...
+                              round(fit_percentage*100), time_limit);
+    
+    % Create directory if it doesn't exist
+    if ~exist('MSD Data', 'dir')
+       mkdir('MSD Data')
+    end
+    
+    writetable(export_table, output_csv_path);
+    fprintf('Successfully saved quadratic fit data to %s\n', output_csv_path);
+    
+    % --- 6. Create Final Publication Plot ---
+    disp('Creating final publication plot for the partial fit...');
+    figure; 
+    hold on;
+    
+    % Plot experimental data with error bars up to the time limit
+    h_error = errorbar(time_data, mean_msd_data, sem_data, 'o');
+    set(h_error, 'MarkerSize', 5, 'MarkerFaceColor', 'blue', 'MarkerEdgeColor', 'blue', 'Color', 'blue', 'LineWidth', 1);
+    h_error.CapSize = 4;
+    
+    % Plot the quadratic fit curve over the full time range
+    h_fit = plot(time_data, fo(time_data));
+    set(h_fit, 'Color', 'k', 'LineWidth', 1.5);
+    
+    % Configure plot aesthetics
+    title_text = sprintf('MSD Fit on First %d%% (D=%.3f, V=%.3f)', ...
+                         round(fit_percentage*100), diffusion_coeff, velocity);
+    title(title_text);
+    xlabel('Time (s)');
+    ylabel('MSD (\mum^2)');
+    grid on;
+    box on;
+    
+    xlim_upper = time_limit + 0.1;
+    xlim([0 xlim_upper]);
+    xticks(0:0.2:xlim_upper);
+    
+    legend([h_error, h_fit], 'Mean MSD', sprintf('Fit on first %d%%', round(fit_percentage*100)), 'Location', 'northwest');
+    hold off;
+    
+    fprintf('Processing for %.0f%% fit complete.\n', fit_percentage*100);
+end
+
+% --- 1. Prepare data for fitting ---
+    t = MMSD(:,1);
+    msd_mean = MMSD(:,2);
+    msd_std = MMSD(:,3);
+
+% --- Section 9. Partial Quadratic Fit Analysis & Export ---
+disp('--- Section 9: Partial Quadratic Fit Analysis ---');
+if exist('MMSD', 'var') && ~isempty(MMSD)
+    % Call the new function for 20% of the data points.
+    % We will plot and export data up to 2.0s for both cases.
+    export_and_plot_partial_quadratic_fit(MMSD, 1, 2.0); % Fit on first 20%
+else
+    disp('MMSD data not found. Please run your MSD calculation first.');
+end
