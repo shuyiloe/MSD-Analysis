@@ -37,7 +37,7 @@ This script is a wrapper for the @msdanalyzer class, which is
 ### 2.1  **Prepare Your Data**
 
 You can use tracking plugins (e.g. TRACKMATE) in ImageJ, Video Spot Tracker, or Machine Learning Model to acquire the coordinates information of your Micro/Nano-motors and store it in a csv file as the following figure shows: 
- <img src="./Images/csv%20file%20storing%20all%20the%20tracjectories.png" alt="Plot" width="450">
+ <img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/csv%20file%20storing%20all%20the%20tracjectories.png" alt="Plot" width="450">
 
 ### 2.2 Data Loading and Preprocessing
 
@@ -80,21 +80,21 @@ disp('Data loaded successfully.');
 
 The csv file to be processed should contain the information of each particle's ID, frame number, and x/y-coordinates. As the following example csv file shows: 
 
-<img src="./Images/csv%20file%20storing%20all%20the%20tracjectories.png" alt="Plot" width="450">
+<img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/csv%20file%20storing%20all%20the%20tracjectories.png" alt="Plot" width="450">
 
 Once the csv is loaded successfully, you can check the table storing all information in the worksapce in MATLAB: 
 
-<img src="./Images/Table%20T.png" alt="Plot" width="450">
+<img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/Table%20T.png" alt="Plot" width="450">
 
 #### Store all trajectories in a cell array (code section 3)
 
 **tracks** is an $N \times 1$ (N = numParticles, i.e., the number of particles) cell array which looks like this: 
 
-<img src="./Images/Cell%20Array_tracks.png" alt="Plot" width="450">
+<img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/Cell%20Array_tracks.png" alt="Plot" width="450">
 
 You can check each entry by simply clicking it: 
 
-<img src="./Images/Single%20Entry%20in%20tracks.png" alt="Plot" width="450">
+<img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/Single%20Entry%20in%20tracks.png" alt="Plot" width="450">
 
 The first column is the time vector, and the second and the third are the x-coordinates and y-coordinates, respectively.
 
@@ -110,23 +110,23 @@ Code section 5 is designed to filter invalid trajectories. A window will pop up,
     - Press *Next* to continue inspection;
     - Press *Save* to save the desired figure;
 
-    <img src="./Images/Track_Index_1_Particle_ID_0.png" alt="Plot" width="700">
+    <img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/Track_Index_1_Particle_ID_0.png" alt="Plot" width="700">
 
 ### 2.4 Visualizing Instantaneous Velocity Distribution & Velocity Correlation
 Once you have finished curating your tracks, the script automatically generates two diagnostic plots based on the remaining trajectories:
 - **Veocity Distribution**: A histogram of the instantaneous velocities ($v_x ~\text{and}~ v_y$). For pure Brownian motion, this distribution should be a Gaussian distribution centered at zero.
 
-    <img src="./Images/velocity%20distribution.png" alt="Plot" width="700">
+    <img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/velocity%20distribution.png" alt="Plot" width="700">
 
 - **Velocity Correlation**: A plot showing how the velocity is correlated over time. For pure Brownian motion, this should be zero for all time except at $\Delta t=0$.
 
-    <img src="./Images/velocity%20correlation.png" alt="Plot" width="700">
+    <img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/velocity%20correlation.png" alt="Plot" width="700">
 
 ### 2.5 Visualizing MSD, MeanMSD, and fitting curve
 
 - *plotMSD* plots all the MSD curves.
 
-    <img src="./Images/All MSD-2.png" alt="Plot" width="700">
+    <img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/All MSD-2.png" alt="Plot" width="700">
 
 - *plotMeanMSD* plots the weighted mean of all MSD curves with error bars, where the gray-shaded region represents the standard deviation over all MSD curves.
 
@@ -134,26 +134,26 @@ Once you have finished curating your tracks, the script automatically generates 
 
 - You can add the linear fitting or the quadratic fitting curve on the MeanMSD figure: 
 
-    <img src="./Images/MeanMSD and Linear Fitting Curve.png" alt="Plot" width="700"> 
+    <img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/MeanMSD and Linear Fitting Curve.png" alt="Plot" width="700"> 
 
 - The calculated diffusion coefficient and Goodness of fitting will be displayed in the command window:
 
-    <img src="./Images/Fitting Info.png" alt="Plot" width="700"> 
+    <img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/Fitting Info.png" alt="Plot" width="700"> 
 
 
 ### 2.6 Export Results
 Finally, the script automatically generates the final outputs based on the filtered and analyzed data. For specified fit_percentage and time_limit, you will obtain:
 - **A CSV file** (e.g. MSD_Fit_on_First_5_Percent_Filtered_2.0s): This file contains the time data, Mean MSD, Standard Error of the Mean (SEM), the Diffusion Coefficient (D) and the goodness of fitting ($R^2$). You can find it in a folder named *MSD Data*.
 
-    <img src="./Images/exported result.png" alt="Plot" width="700"> 
+    <img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/exported result.png" alt="Plot" width="700"> 
 
 - **An MSD figure and a fitting curve**: A polished figure showing the Mean MSD with SEM error bars, a clear title reporting the diffusion coefficient, and properly labeled axes. 
 
-    <img src="./Images/MSD 20%25 and Quadratic Fitting.png" alt="Plot" width="700"> 
+    <img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/MSD 20%25 and Quadratic Fitting.png" alt="Plot" width="700"> 
 
 You can also check the result displayed in the command window: 
 
-<img src="./Images/fitting & exporting info.png" alt="Plot" width="700">
+<img src=".MSD_ALL_IN_ONE-2.0-LSY/Images/fitting & exporting info.png" alt="Plot" width="700">
 
 ## Citing the Tool: msdanalyzer
 
